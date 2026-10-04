@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="settings">
+  <p><a href="/">&larr; Status</a></p>
+  <h1>Settings</h1>
+  <div id="msg" class="msg" hidden></div>
+
+  <section class="card">
+    <h2>Ports</h2>
+    <div id="port-control"></div>
+    <p class="hint">Disabling a port stops charging on it until it is enabled again. Takes effect immediately.</p>
+  </section>
+
+  <form id="form">
+    <section class="card">
+      <h2>Station</h2>
+      <div class="row">
+        <label>Station name <input type="text" name="station_name" required maxlength="60"></label>
+        <label>Poll interval (ms) <input type="number" name="poll_interval_ms" min="200" max="10000" step="100"></label>
+      </div>
+      <div class="row">
+        <label>Listen address <input type="text" name="listen"></label>
+        <label>Data directory <input type="text" name="data_dir"></label>
+      </div>
+      <p class="hint">Listen address and data directory changes apply after the service restarts.</p>
+    </section>
+
+    <section class="card">
+      <h2>Chargers <span class="muted">(1&ndash;4)</span></h2>
+      <div id="chargers"></div>
+      <button type="button" id="add-charger">Add charger</button>
+    </section>
+
+    <section class="card">
+      <h2>Power meters <span class="muted">(0&ndash;2)</span></h2>
+      <div id="meters"></div>
+      <button type="button" id="add-meter">Add meter</button>
+      <p class="hint">Each meter board has two channels. Assign a channel to a charger to show voltage, current and energy, and to enable dynamic load sharing.</p>
+    </section>
+
+    <section class="card">
+      <h2>Load sharing</h2>
+      <div class="row">
+        <label class="check"><input type="checkbox" name="ls_enabled"> Enable load sharing</label>
+        <label class="check"><input type="checkbox" name="ls_dynamic"> Dynamic (reallocate unused current; requires meters)</label>
+      </div>
+      <div class="row">
+        <label>System maximum (A) <input type="number" name="ls_system_max_amps" min="12" step="1"></label>
+        <label>Minimum per vehicle (A) <input type="number" name="ls_min_amps" min="12" step="1"></label>
+      </div>
+      <div class="row">
+        <label>Throttle margin (A) <input type="number" name="ls_throttle_margin_amps" min="0" step="0.5"></label>
+        <label>Throttle headroom (A) <input type="number" name="ls_throttle_headroom_amps" min="1" step="0.5"></label>
+        <label>Throttle delay (s) <input type="number" name="ls_throttle_delay_sec" min="5" step="1"></label>
+        <label>Re-probe interval (s) <input type="number" name="ls_probe_interval_sec" min="30" step="1"></label>
+      </div>
+      <p class="hint">Without load sharing, each port is limited to its own maximum. With it, the system maximum is divided among vehicles that are charging; vehicles that can't be given the minimum wait until power frees up. Dynamic mode lowers the limit on ports drawing less than offered and gives the difference to the others.</p>
+    </section>
+
+    <section class="card">
+      <h2>Admin password</h2>
+      <div class="row">
+        <label>New password <input type="password" name="admin_password" autocomplete="new-password" placeholder="leave blank to keep"></label>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="submit" class="primary">Save settings</button>
+    </div>
+    <p class="hint">Saving restarts charger communication; charging continues and sessions in progress are logged and restarted.</p>
+  </form>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Logo</h2>
+    <div class="row">
+      <img id="logo-preview" class="logo-preview" src="/logo" alt="Current logo">
+      <label>Upload image (PNG, JPEG, WebP or SVG, max 1 MB) <input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+      <button type="button" id="logo-reset" class="danger">Restore default</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Recent sessions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Port</th><th>Plugged in</th><th>Duration</th><th>Charging</th><th>Energy</th><th>Peak</th></tr></thead>
+        <tbody id="sessions"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<script src="/static/settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EV Charging</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="status-page">
+<header class="top">
+  <img id="logo" class="logo" src="/logo" alt="">
+  <h1 id="station-name">EV Charging</h1>
+  <div id="clock" class="clock"></div>
+</header>
+<div id="banner" class="banner" hidden></div>
+<main id="ports" class="ports" data-count="0"></main>
+<footer class="bottom">
+  <span id="sharing"></span>
+  <span id="meters"></span>
+  <span id="version" class="muted"></span>
+</footer>
+<template id="port-template">
+  <section class="port">
+    <div class="port-head">
+      <h2 class="port-name"></h2>
+      <span class="state"></span>
+    </div>
+    <div class="port-main">
+      <div class="big"><span class="big-value"></span><span class="big-unit"></span></div>
+      <div class="sub"></div>
+    </div>
+    <dl class="metrics"></dl>
+  </section>
+</template>
+<script src="/static/app.js"></script>
+</body>
+</html>

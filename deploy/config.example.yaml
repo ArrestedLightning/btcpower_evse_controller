@@ -1,0 +1,41 @@
+# evse-controller configuration.
+# Install as /etc/evse-controller/config.yaml (mode 0600; it holds the admin password).
+# Saving from the web settings page rewrites this file and drops comments.
+
+station_name: EV Charging
+listen: ":8080"
+# Password for /settings and the enable/disable API (any user name).
+# Leave empty to disable all admin functions.
+admin_password: change-me
+data_dir: /var/lib/evse-controller
+poll_interval_ms: 1000
+
+# 1-4 chargers. Serial ports found on the original system:
+# port 1 = /dev/ttyS1, port 2 = /dev/ttyS3, power meter = /dev/ttyS2.
+# max_amps: 12-75 A, limited by the pilot duty range the boards accept.
+chargers:
+  - name: Port 1
+    serial: /dev/ttyS1
+    max_amps: 32
+    meter: {meter: 1, channel: 1}
+  - name: Port 2
+    serial: /dev/ttyS3
+    max_amps: 32
+    meter: {meter: 1, channel: 2}
+
+# 0-2 power meter boards, two channels each.
+meters:
+  - name: Meter 1
+    serial: /dev/ttyS2
+
+load_sharing:
+  enabled: false
+  system_max_amps: 40
+  # Lowest current offered to a vehicle; ports that can't get this wait.
+  min_amps: 12
+  # Reallocate current that vehicles aren't using (requires meter channels).
+  dynamic: false
+  throttle_margin_amps: 2
+  throttle_headroom_amps: 3
+  throttle_delay_sec: 30
+  probe_interval_sec: 300

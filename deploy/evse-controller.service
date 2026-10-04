@@ -1,0 +1,24 @@
+# Written for systemd 229 (Ubuntu 16.04); avoid newer directives.
+[Unit]
+Description=EVSE charge controller
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/evsectl -config /etc/evse-controller/config.yaml
+Restart=always
+RestartSec=3
+User=evse
+Group=evse
+# Serial ports belong to group dialout.
+SupplementaryGroups=dialout
+# Uncomment to listen on port 80 as a non-root user.
+#AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+# ProtectSystem=full makes /etc read-only; the settings page rewrites the config.
+ReadWriteDirectories=/etc/evse-controller
+
+[Install]
+WantedBy=multi-user.target
