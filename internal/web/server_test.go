@@ -155,6 +155,28 @@ func TestConfigRoundTripAndReload(t *testing.T) {
 	}
 }
 
+func TestDisplayOptions(t *testing.T) {
+	srv, a, _ := newServer(t, 1)
+	_, body := do(t, srv, "GET", "/", nil, false)
+	if !strings.Contains(string(body), `class="theme-dark"`) || strings.Contains(string(body), `clock" hidden`) {
+		t.Fatalf("default page: %s", body)
+	}
+	cfg := a.Config()
+	hide := false
+	cfg.Display = config.Display{Theme: config.ThemeLight, ShowClock: &hide}
+	if err := a.ApplyConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	_, body = do(t, srv, "GET", "/", nil, false)
+	if !strings.Contains(string(body), `class="theme-light"`) || !strings.Contains(string(body), `<div id="clock" class="clock" hidden>`) {
+		t.Fatalf("light page: %s", body)
+	}
+	_, body = do(t, srv, "GET", "/api/v1/status", nil, false)
+	if !strings.Contains(string(body), `"theme": "light"`) || !strings.Contains(string(body), `"show_clock": false`) {
+		t.Fatalf("status display: %s", body)
+	}
+}
+
 func TestLogoUpload(t *testing.T) {
 	srv, _, _ := newServer(t, 1)
 	png := append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 64)...)

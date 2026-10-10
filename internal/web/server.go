@@ -73,10 +73,23 @@ func securityHeaders(h http.Handler) http.Handler {
 	})
 }
 
+// page serves an HTML page with the configured theme and clock visibility
+// applied, so it renders correctly before the first status poll.
 func (s *Server) page(static fs.FS, name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		data, err := fs.ReadFile(static, name)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		d := s.App.Config().Display
+		html := strings.Replace(string(data), "<html lang=\"en\">", `<html lang="en" class="theme-`+d.Theme+`">`, 1)
+		if !d.ClockVisible() {
+			html = strings.Replace(html, `<div id="clock" class="clock">`, `<div id="clock" class="clock" hidden>`, 1)
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFileFS(w, r, static, name)
+		io.WriteString(w, html)
 	}
 }
 
@@ -114,12 +127,23 @@ func httpError(w http.ResponseWriter, code int, msg string) {
 
 type statusResponse struct {
 	station.Status
-	Version     string `json:"version"`
-	LogoVersion int64  `json:"logo_version"`
+	Version     string         `json:"version"`
+	LogoVersion int64          `json:"logo_version"`
+	Display     displayOptions `json:"display"`
+}
+
+type displayOptions struct {
+	Theme     string `json:"theme"`
+	ShowClock bool   `json:"show_clock"`
 }
 
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
-	resp := statusResponse{Status: s.App.Station().Snapshot(), Version: s.Version}
+	d := s.App.Config().Display
+	resp := statusResponse{
+		Status:  s.App.Station().Snapshot(),
+		Version: s.Version,
+		Display: displayOptions{Theme: d.Theme, ShowClock: d.ClockVisible()},
+	}
 	if p, _ := s.logoPath(); p != "" {
 		if fi, err := os.Stat(p); err == nil {
 			resp.LogoVersion = fi.ModTime().UnixNano()

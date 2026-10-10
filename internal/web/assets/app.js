@@ -1,5 +1,6 @@
 // Status page: polls /api/v1/status and renders one card per port.
-// Written for older Chrome (kiosk): no optional chaining or other ES2020+.
+// Must run on the kiosk's Chromium 62: ES2016 only, and no AbortController
+// (Chrome 66), so polling uses XMLHttpRequest.
 (function () {
   "use strict";
 
@@ -128,6 +129,10 @@
     var meters = st.meters || [];
     var down = meters.filter(function (m) { return !m.online; }).map(function (m) { return m.name; });
     document.getElementById("meters").textContent = down.length ? "Meter offline: " + down.join(", ") : "";
+    var disp = st.display || {};
+    document.documentElement.className = "theme-" + (disp.theme || "dark");
+    document.getElementById("clock").hidden = disp.show_clock === false;
+
     document.getElementById("version").textContent = (st.simulated ? "SIMULATION · " : "") + "v" + st.version;
 
     if (logoVersion !== null && st.logo_version !== logoVersion) {
@@ -137,29 +142,36 @@
   }
 
   function tick() {
-    var ctl = new AbortController();
-    var timer = setTimeout(function () { ctl.abort(); }, 4000);
-    fetch("/api/v1/status", { cache: "no-store", signal: ctl.signal })
-      .then(function (r) {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      })
-      .then(function (st) {
+    var xhr = new XMLHttpRequest();
+    var done = false;
+    function finish(st) {
+      if (done) return;
+      done = true;
+      if (st) {
         failures = 0;
         banner.hidden = true;
-        render(st);
-      })
-      .catch(function () {
-        failures++;
-        if (failures >= 3) {
-          banner.textContent = "Controller not responding";
-          banner.hidden = false;
+        try {
+          render(st);
+        } catch (e) {
+          if (window.console) console.error(e);
         }
-      })
-      .then(function () {
-        clearTimeout(timer);
-        setTimeout(tick, 1000);
-      });
+      } else if (++failures >= 3) {
+        banner.textContent = "Controller not responding";
+        banner.hidden = false;
+      }
+      setTimeout(tick, 1000);
+    }
+    xhr.open("GET", "/api/v1/status?t=" + Date.now());
+    xhr.timeout = 4000;
+    xhr.onload = function () {
+      var st = null;
+      if (xhr.status === 200) {
+        try { st = JSON.parse(xhr.responseText); } catch (e) { st = null; }
+      }
+      finish(st);
+    };
+    xhr.onerror = xhr.ontimeout = xhr.onabort = function () { finish(null); };
+    xhr.send();
   }
 
   function clock() {

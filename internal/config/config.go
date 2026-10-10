@@ -13,6 +13,10 @@ import (
 	"github.com/ArrestedLightning/btcpower_evse_controller/internal/proto"
 )
 
+// DefaultMinAmps is the default lowest current offered to a vehicle under
+// load sharing; the original software never went below 12 A.
+const DefaultMinAmps = 12
+
 // Limits on the supported hardware configurations.
 const (
 	MaxChargers = 4
@@ -21,7 +25,7 @@ const (
 
 // Current limits derived from the duty cycle range the boards accept.
 var (
-	MinPortAmps = proto.AmpsForDuty(proto.MinDuty) // 12 A
+	MinPortAmps = proto.AmpsForDuty(proto.MinDuty) // 6 A
 	MaxPortAmps = proto.AmpsForDuty(proto.MaxDuty) // 75 A
 )
 
@@ -35,7 +39,25 @@ type Config struct {
 	Chargers       []Charger   `yaml:"chargers" json:"chargers"`
 	Meters         []Meter     `yaml:"meters" json:"meters"`
 	LoadSharing    LoadSharing `yaml:"load_sharing" json:"load_sharing"`
+	Display        Display     `yaml:"display" json:"display"`
 }
+
+// Display themes.
+const (
+	ThemeDark  = "dark"
+	ThemeLight = "light"
+)
+
+// Display configures the status page.
+type Display struct {
+	// Theme is "dark" or "light" (easier to read in sunlight).
+	Theme string `yaml:"theme" json:"theme"`
+	// ShowClock shows the time in the header; hide it if the clock is unreliable.
+	ShowClock *bool `yaml:"show_clock" json:"show_clock"`
+}
+
+// ClockVisible reports whether the clock should be shown (default true).
+func (d Display) ClockVisible() bool { return d.ShowClock == nil || *d.ShowClock }
 
 // Charger is one J1772 port and its control board.
 type Charger struct {
@@ -108,9 +130,16 @@ func (c *Config) ApplyDefaults() {
 			c.Meters[i].Name = fmt.Sprintf("Meter %d", i+1)
 		}
 	}
+	if c.Display.Theme == "" {
+		c.Display.Theme = ThemeDark
+	}
+	if c.Display.ShowClock == nil {
+		show := true
+		c.Display.ShowClock = &show
+	}
 	ls := &c.LoadSharing
 	if ls.MinAmps == 0 {
-		ls.MinAmps = MinPortAmps
+		ls.MinAmps = DefaultMinAmps
 	}
 	if ls.ThrottleMarginAmps == 0 {
 		ls.ThrottleMarginAmps = 2
@@ -175,6 +204,9 @@ func (c *Config) Validate() error {
 	for i, m := range c.Meters {
 		checkSerial(fmt.Sprintf("meter %d (%s)", i+1, m.Name), m.Serial)
 	}
+	if c.Display.Theme != ThemeDark && c.Display.Theme != ThemeLight {
+		add("display.theme must be %q or %q", ThemeDark, ThemeLight)
+	}
 	ls := c.LoadSharing
 	if ls.MinAmps < MinPortAmps {
 		add("load_sharing.min_amps must be at least %g", MinPortAmps)
@@ -216,6 +248,10 @@ func (c *Config) Clone() *Config {
 		}
 	}
 	n.Meters = append([]Meter(nil), c.Meters...)
+	if c.Display.ShowClock != nil {
+		show := *c.Display.ShowClock
+		n.Display.ShowClock = &show
+	}
 	return &n
 }
 

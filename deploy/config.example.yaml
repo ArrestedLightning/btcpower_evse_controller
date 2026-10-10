@@ -12,7 +12,8 @@ poll_interval_ms: 1000
 
 # 1-4 chargers. Serial ports found on the original system:
 # port 1 = /dev/ttyS1, port 2 = /dev/ttyS3, power meter = /dev/ttyS2.
-# max_amps: 12-75 A, limited by the pilot duty range the boards accept.
+# max_amps: 6-75 A (pilot duty 10-94%). The original software never went
+# below 12 A; lower values are untested on this hardware.
 chargers:
   - name: Port 1
     serial: /dev/ttyS1
@@ -32,6 +33,7 @@ load_sharing:
   enabled: false
   system_max_amps: 40
   # Lowest current offered to a vehicle; ports that can't get this wait.
+  # 6-12 A; below 12 A is untested on this hardware.
   min_amps: 12
   # Reallocate current that vehicles aren't using (requires meter channels).
   dynamic: false
@@ -39,3 +41,9 @@ load_sharing:
   throttle_headroom_amps: 3
   throttle_delay_sec: 30
   probe_interval_sec: 300
+
+display:
+  # dark or light. Light is easier to read in sunlight.
+  theme: dark
+  # Hide the clock if the system time isn't reliable.
+  show_clock: true

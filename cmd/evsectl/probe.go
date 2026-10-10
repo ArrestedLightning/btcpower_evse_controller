@@ -25,7 +25,7 @@ func probeMain(args []string) int {
 	enable := fs.Bool("enable", false, "charger: send enable (authorize) command")
 	disable := fs.Bool("disable", false, "charger: send disable command")
 	keepalive := fs.Bool("keepalive", true, "charger: repeat -enable/-disable every cycle (set false to test for a watchdog)")
-	duty := fs.Int("duty", 0, "charger: send this pilot duty cycle (20-94) once at start")
+	duty := fs.Int("duty", 0, "charger: send this pilot duty cycle (10-94) once at start")
 	reset := fs.Bool("reset", false, "charger: send the board reset command (0x7D) at start")
 	asJSON := fs.Bool("json", false, "print decoded frames as JSON")
 	fs.Usage = func() {

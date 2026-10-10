@@ -77,7 +77,7 @@ Port states are `idle`, `connected`, `charging`, `fault`, `offline` and `unknown
 
 ## Load sharing
 
-**Port maximum.** Each port's `max_amps` is always enforced through the J1772 pilot duty cycle. The boards accept 20–94 % duty, so the usable range is 12–75 A.
+**Port maximum.** Each port's `max_amps` is always enforced through the J1772 pilot duty cycle. Duty 10–94 % is allowed, so the range is 6–75 A. The original software never went below 20 % (12 A), so check that the boards accept lower values (`evsectl probe -duty 10`). `load_sharing.min_amps` defaults to 12 A.
 
 **With `load_sharing.enabled`:**
 
@@ -94,6 +94,12 @@ Port states are `idle`, `connected`, `charging`, `fault`, `offline` and `unknown
 - A port that draws less than its limit minus `throttle_margin_amps` for `throttle_delay_sec` is capped at its measured current plus `throttle_headroom_amps`. The freed current goes to the other ports.
 - The port gets its full share back when its draw approaches the cap, and every `probe_interval_sec`.
 - Ports without fresh meter data are never throttled.
+
+## Display
+
+`display.theme` (`dark` or `light`) and `display.show_clock` are set in the config or on the settings page. The kiosk picks up changes on its next poll. The light theme is higher contrast for use in sunlight.
+
+The front end must keep working on the kiosk's Chromium 62 and on Firefox 57. That rules out flexbox `gap` (use margins) and grid `gap` (use `grid-gap`), `AbortController`, and JavaScript newer than ES2016.
 
 ## Notes
 

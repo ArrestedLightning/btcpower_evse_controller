@@ -80,7 +80,7 @@
     card.appendChild(el("div", { "class": "row" }, [
       field("Name", el("input", { type: "text", "data-k": "name", value: ch.name || "", maxlength: "40" })),
       field("Serial port", el("input", { type: "text", "data-k": "serial", value: ch.serial || "", placeholder: "/dev/ttyS1" })),
-      field("Max current (A)", el("input", { type: "number", "data-k": "max_amps", value: ch.max_amps || 32, min: "12", max: "75", step: "1" })),
+      field("Max current (A)", el("input", { type: "number", "data-k": "max_amps", value: ch.max_amps || 32, min: "6", max: "75", step: "1" })),
       field("Meter channel", meterOptions(meterSel))
     ]));
     return card;
@@ -129,6 +129,9 @@
     f.ls_throttle_headroom_amps.value = ls.throttle_headroom_amps;
     f.ls_throttle_delay_sec.value = ls.throttle_delay_sec;
     f.ls_probe_interval_sec.value = ls.probe_interval_sec;
+    f.display_theme.value = c.display.theme;
+    f.display_show_clock.checked = c.display.show_clock !== false;
+    document.documentElement.className = "theme-" + c.display.theme;
     f.admin_password.value = "";
     metersEl.innerHTML = "";
     (c.meters || []).forEach(function (m) { metersEl.appendChild(meterRow(m)); });
@@ -146,6 +149,10 @@
       data_dir: f.data_dir.value.trim(),
       poll_interval_ms: num(f.poll_interval_ms.value),
       admin_password: f.admin_password.value,
+      display: {
+        theme: f.display_theme.value,
+        show_clock: f.display_show_clock.checked
+      },
       chargers: [],
       meters: [],
       load_sharing: {

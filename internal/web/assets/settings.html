@@ -33,6 +33,20 @@
     </section>
 
     <section class="card">
+      <h2>Display</h2>
+      <div class="row">
+        <label>Theme
+          <select name="display_theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light (better in sunlight)</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="display_show_clock"> Show clock</label>
+      </div>
+      <p class="hint">Hide the clock if the system time is not set correctly.</p>
+    </section>
+
+    <section class="card">
       <h2>Chargers <span class="muted">(1&ndash;4)</span></h2>
       <div id="chargers"></div>
       <button type="button" id="add-charger">Add charger</button>
@@ -52,8 +66,8 @@
         <label class="check"><input type="checkbox" name="ls_dynamic"> Dynamic (reallocate unused current; requires meters)</label>
       </div>
       <div class="row">
-        <label>System maximum (A) <input type="number" name="ls_system_max_amps" min="12" step="1"></label>
-        <label>Minimum per vehicle (A) <input type="number" name="ls_min_amps" min="12" step="1"></label>
+        <label>System maximum (A) <input type="number" name="ls_system_max_amps" min="6" step="1"></label>
+        <label>Minimum per vehicle (A) <input type="number" name="ls_min_amps" min="6" step="1"></label>
       </div>
       <div class="row">
         <label>Throttle margin (A) <input type="number" name="ls_throttle_margin_amps" min="0" step="0.5"></label>
