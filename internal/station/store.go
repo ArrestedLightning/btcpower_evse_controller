@@ -18,6 +18,10 @@ const (
 	sessionsFile = "sessions.jsonl"
 	// maxRecentSessions is how many finished sessions are kept in memory.
 	maxRecentSessions = 200
+	// maxSessionsFileBytes caps sessions.jsonl (several thousand sessions);
+	// when exceeded it is renamed to sessions.jsonl.1, replacing any older
+	// copy, so at most twice this is kept on disk.
+	maxSessionsFileBytes = 2 << 20
 )
 
 // Session is a finished (or in-progress) charging session.
@@ -41,7 +45,8 @@ type persistedState struct {
 
 // Store persists per-port enable flags and the session log.
 type Store struct {
-	dir string
+	dir      string
+	maxBytes int64
 
 	mu     sync.Mutex
 	recent []Session
@@ -52,26 +57,40 @@ func OpenStore(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	s := &Store{dir: dir}
-	f, err := os.Open(filepath.Join(dir, sessionsFile))
+	s := &Store{dir: dir, maxBytes: maxSessionsFileBytes}
+	path := filepath.Join(dir, sessionsFile)
+	for _, p := range []string{path + ".1", path} { // oldest first
+		if err := s.load(p); err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
+}
+
+func (s *Store) load(path string) error {
+	f, err := os.Open(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return s, nil
+		return nil
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		var sess Session
 		if json.Unmarshal(sc.Bytes(), &sess) == nil {
-			s.recent = append(s.recent, sess)
-			if len(s.recent) > maxRecentSessions {
-				s.recent = s.recent[1:]
-			}
+			s.addRecent(sess)
 		}
 	}
-	return s, sc.Err()
+	return sc.Err()
+}
+
+func (s *Store) addRecent(sess Session) {
+	s.recent = append(s.recent, sess)
+	if len(s.recent) > maxRecentSessions {
+		s.recent = s.recent[1:]
+	}
 }
 
 // LoadEnabled returns the persisted enable flags for n ports; ports without a
@@ -115,15 +134,18 @@ func (s *Store) SaveEnabled(en []bool) error {
 func (s *Store) AppendSession(sess Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.recent = append(s.recent, sess)
-	if len(s.recent) > maxRecentSessions {
-		s.recent = s.recent[1:]
-	}
+	s.addRecent(sess)
 	line, err := json.Marshal(sess)
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(s.dir, sessionsFile), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	path := filepath.Join(s.dir, sessionsFile)
+	if fi, err := os.Stat(path); err == nil && fi.Size()+int64(len(line)) >= s.maxBytes {
+		if err := os.Rename(path, path+".1"); err != nil {
+			return err
+		}
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -132,6 +154,19 @@ func (s *Store) AppendSession(sess Session) error {
 		err = cerr
 	}
 	return err
+}
+
+// LastForPort returns the most recent finished session on port (1-based), or nil.
+func (s *Store) LastForPort(port int) *Session {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := len(s.recent) - 1; i >= 0; i-- {
+		if s.recent[i].Port == port {
+			sess := s.recent[i]
+			return &sess
+		}
+	}
+	return nil
 }
 
 // Recent returns up to limit finished sessions, newest first.

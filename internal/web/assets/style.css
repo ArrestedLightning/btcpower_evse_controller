@@ -72,6 +72,9 @@ body {
 }
 .port-main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 6px 0; }
 .big { font-size: 46px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.big.prev .big-value { color: var(--muted); }
+.big-label { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+.big-label:empty { display: none; }
 .big-unit { font-size: 22px; font-weight: 500; color: var(--muted); margin-left: 6px; }
 .sub { color: var(--muted); font-size: 16px; min-height: 1.35em; }
 .metrics {
@@ -127,6 +130,7 @@ body {
   .ports[data-count="4"] .port-main { padding: 0; }
   .ports[data-count="4"] .metrics { font-size: 14px; grid-column-gap: 24px; }
   .ports[data-count="4"] .sub { font-size: 14px; }
+  .ports[data-count="4"] .big-label { font-size: 12px; }
 }
 /* Large single/dual displays get bigger numbers. */
 @media (min-width: 900px) and (min-height: 600px) {

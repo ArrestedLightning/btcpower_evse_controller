@@ -23,6 +23,15 @@
     return h > 0 ? h + ":" + mm + ":" + ss : m + ":" + ss;
   }
 
+  // ago formats an elapsed time in seconds, e.g. "12 min ago".
+  function ago(sec) {
+    var m = Math.floor(sec / 60), h = Math.floor(m / 60), days = Math.floor(h / 24);
+    if (m < 1) return "just now";
+    if (h < 1) return m + " min ago";
+    if (h < 48) return h + " h " + (m % 60) + " min ago";
+    return days + " days ago";
+  }
+
   // Display state: label, CSS class and a sub-line.
   function describe(p) {
     if (!p.online) return { label: "Offline", cls: "offline", sub: "No communication with charger" };
@@ -70,9 +79,24 @@
     var sess = p.session;
     var big = card.querySelector(".big-value");
     var unit = card.querySelector(".big-unit");
+    var label = card.querySelector(".big-label");
+    var last = sess ? null : p.last_session;
     var sub = d.sub;
+    label.textContent = "";
+    card.querySelector(".big").className = "big";
 
-    if (p.state === "charging" && m) {
+    if (last) {
+      // No session in progress: show the previous one.
+      label.textContent = "Last session \u00b7 ended " + ago(last.seconds_since_end);
+      card.querySelector(".big").className = "big prev";
+      if (last.energy_kwh !== null && last.energy_kwh !== undefined) {
+        big.textContent = fmt(last.energy_kwh, 2);
+        unit.textContent = "kWh";
+      } else {
+        big.textContent = duration(last.charging_seconds);
+        unit.textContent = "charging";
+      }
+    } else if (p.state === "charging" && m) {
       big.textContent = fmt(m.power_w / 1000, 1);
       unit.textContent = "kW";
     } else if (sess && sess.energy_kwh !== null && sess.energy_kwh !== undefined) {

@@ -4,7 +4,9 @@ Description=EVSE charge controller
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/evsectl -config /etc/evse-controller/config.yaml
+# Logs go to a size-limited file (at most 4 x 10 MB) rather than the journal,
+# which Ubuntu forwards to /var/log/syslog. Use `tail -f` on it to follow.
+ExecStart=/usr/local/bin/evsectl -config /etc/evse-controller/config.yaml -log-file /var/log/evse-controller/evsectl.log -log-max-mb 10 -log-backups 3
 Restart=always
 RestartSec=3
 User=evse

@@ -7,15 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/ArrestedLightning/btcpower_evse_controller/internal/proto"
 )
-
-// DefaultMinAmps is the default lowest current offered to a vehicle under
-// load sharing; the original software never went below 12 A.
-const DefaultMinAmps = 12
 
 // Limits on the supported hardware configurations.
 const (
@@ -25,21 +22,26 @@ const (
 
 // Current limits derived from the duty cycle range the boards accept.
 var (
-	MinPortAmps = proto.AmpsForDuty(proto.MinDuty) // 6 A
+	MinPortAmps = proto.AmpsForDuty(proto.MinDuty) // 12 A
 	MaxPortAmps = proto.AmpsForDuty(proto.MaxDuty) // 75 A
 )
 
 // Config is the top-level configuration file.
 type Config struct {
-	StationName    string      `yaml:"station_name" json:"station_name"`
-	Listen         string      `yaml:"listen" json:"listen"`
-	AdminPassword  string      `yaml:"admin_password" json:"admin_password,omitempty"`
-	DataDir        string      `yaml:"data_dir" json:"data_dir"`
-	PollIntervalMS int         `yaml:"poll_interval_ms" json:"poll_interval_ms"`
-	Chargers       []Charger   `yaml:"chargers" json:"chargers"`
-	Meters         []Meter     `yaml:"meters" json:"meters"`
-	LoadSharing    LoadSharing `yaml:"load_sharing" json:"load_sharing"`
-	Display        Display     `yaml:"display" json:"display"`
+	StationName    string `yaml:"station_name" json:"station_name"`
+	Listen         string `yaml:"listen" json:"listen"`
+	AdminPassword  string `yaml:"admin_password" json:"admin_password,omitempty"`
+	DataDir        string `yaml:"data_dir" json:"data_dir"`
+	PollIntervalMS int    `yaml:"poll_interval_ms" json:"poll_interval_ms"`
+	// SessionEndDelaySec is how long a vehicle must be disconnected before
+	// its session ends. Boards briefly report "disconnected" when charging
+	// finishes, which would otherwise split the session and reset its energy.
+	// Pointer so an explicit 0 (end immediately) differs from unset.
+	SessionEndDelaySec *int        `yaml:"session_end_delay_sec" json:"session_end_delay_sec"`
+	Chargers           []Charger   `yaml:"chargers" json:"chargers"`
+	Meters             []Meter     `yaml:"meters" json:"meters"`
+	LoadSharing        LoadSharing `yaml:"load_sharing" json:"load_sharing"`
+	Display            Display     `yaml:"display" json:"display"`
 }
 
 // Display themes.
@@ -120,6 +122,10 @@ func (c *Config) ApplyDefaults() {
 	if c.PollIntervalMS == 0 {
 		c.PollIntervalMS = 1000
 	}
+	if c.SessionEndDelaySec == nil {
+		d := 10
+		c.SessionEndDelaySec = &d
+	}
 	for i := range c.Chargers {
 		if c.Chargers[i].Name == "" {
 			c.Chargers[i].Name = fmt.Sprintf("Port %d", i+1)
@@ -139,7 +145,7 @@ func (c *Config) ApplyDefaults() {
 	}
 	ls := &c.LoadSharing
 	if ls.MinAmps == 0 {
-		ls.MinAmps = DefaultMinAmps
+		ls.MinAmps = MinPortAmps
 	}
 	if ls.ThrottleMarginAmps == 0 {
 		ls.ThrottleMarginAmps = 2
@@ -168,6 +174,9 @@ func (c *Config) Validate() error {
 	}
 	if c.PollIntervalMS < 200 || c.PollIntervalMS > 10000 {
 		add("poll_interval_ms must be 200-10000")
+	}
+	if d := c.SessionEndDelay(); d < 0 || d > 10*time.Minute {
+		add("session_end_delay_sec must be 0-600")
 	}
 	serials := map[string]string{}
 	checkSerial := func(owner, s string) {
@@ -225,6 +234,15 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
+// SessionEndDelay returns how long a vehicle must stay disconnected before
+// its session ends.
+func (c *Config) SessionEndDelay() time.Duration {
+	if c.SessionEndDelaySec == nil {
+		return 0
+	}
+	return time.Duration(*c.SessionEndDelaySec) * time.Second
+}
+
 // DynamicAvailable reports whether any port has a meter channel, which is
 // required for dynamic load sharing.
 func (c *Config) DynamicAvailable() bool {
@@ -248,6 +266,10 @@ func (c *Config) Clone() *Config {
 		}
 	}
 	n.Meters = append([]Meter(nil), c.Meters...)
+	if c.SessionEndDelaySec != nil {
+		d := *c.SessionEndDelaySec
+		n.SessionEndDelaySec = &d
+	}
 	if c.Display.ShowClock != nil {
 		show := *c.Display.ShowClock
 		n.Display.ShowClock = &show

@@ -80,7 +80,7 @@
     card.appendChild(el("div", { "class": "row" }, [
       field("Name", el("input", { type: "text", "data-k": "name", value: ch.name || "", maxlength: "40" })),
       field("Serial port", el("input", { type: "text", "data-k": "serial", value: ch.serial || "", placeholder: "/dev/ttyS1" })),
-      field("Max current (A)", el("input", { type: "number", "data-k": "max_amps", value: ch.max_amps || 32, min: "6", max: "75", step: "1" })),
+      field("Max current (A)", el("input", { type: "number", "data-k": "max_amps", value: ch.max_amps || 32, min: "12", max: "75", step: "1" })),
       field("Meter channel", meterOptions(meterSel))
     ]));
     return card;
@@ -118,6 +118,7 @@
     var f = form.elements;
     f.station_name.value = c.station_name;
     f.poll_interval_ms.value = c.poll_interval_ms;
+    f.session_end_delay_sec.value = c.session_end_delay_sec;
     f.listen.value = c.listen;
     f.data_dir.value = c.data_dir;
     var ls = c.load_sharing;
@@ -148,6 +149,7 @@
       listen: f.listen.value.trim(),
       data_dir: f.data_dir.value.trim(),
       poll_interval_ms: num(f.poll_interval_ms.value),
+      session_end_delay_sec: num(f.session_end_delay_sec.value),
       admin_password: f.admin_password.value,
       display: {
         theme: f.display_theme.value,

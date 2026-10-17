@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func valid() *Config {
@@ -38,6 +39,7 @@ func TestValidateErrors(t *testing.T) {
 		"system_max_amps":         func(c *Config) { c.LoadSharing.SystemMaxAmps = 5 },
 		"serial port is required": func(c *Config) { c.Chargers[0].Serial = "" },
 		"display.theme must be":   func(c *Config) { c.Display.Theme = "blue" },
+		"session_end_delay_sec":   func(c *Config) { d := -1; c.SessionEndDelaySec = &d },
 	}
 	for want, mutate := range cases {
 		c := valid()
@@ -51,6 +53,9 @@ func TestValidateErrors(t *testing.T) {
 
 func TestDisplayDefaults(t *testing.T) {
 	c := valid()
+	if c.SessionEndDelay() != 10*time.Second {
+		t.Fatalf("session end delay default %v", c.SessionEndDelay())
+	}
 	if c.Display.Theme != ThemeDark || !c.Display.ClockVisible() {
 		t.Fatalf("defaults: %+v", c.Display)
 	}

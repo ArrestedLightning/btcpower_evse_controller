@@ -46,6 +46,7 @@ if [ ! -f /etc/evse-controller/config.yaml ]; then
     echo "   Created /etc/evse-controller/config.yaml -- set admin_password before use."
 fi
 install -d -m 0755 -o evse -g evse /var/lib/evse-controller
+install -d -m 0755 -o evse -g evse /var/log/evse-controller
 install -m 0644 "$HERE/evse-controller.service" /etc/systemd/system/evse-controller.service
 systemctl daemon-reload
 systemctl enable evse-controller

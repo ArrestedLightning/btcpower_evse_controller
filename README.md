@@ -45,7 +45,6 @@ evsectl probe -port /dev/ttyS2 -type meter          # meter frame header bytes a
 
 Unconfirmed items:
 
-- **Duty command:** that the `0x33` command takes the duty cycle in percent.
 - **Meter reply header:** the header bytes of the meter reply. The parser only relies on the leading `R` and trailing `E`.
 - **Meter scaling:** the power factor and frequency scaling, which are reported raw.
 - **State codes 21–26:** their meaning. They are grouped the same way the vendor UI grouped them.
@@ -77,7 +76,7 @@ Port states are `idle`, `connected`, `charging`, `fault`, `offline` and `unknown
 
 ## Load sharing
 
-**Port maximum.** Each port's `max_amps` is always enforced through the J1772 pilot duty cycle. Duty 10–94 % is allowed, so the range is 6–75 A. The original software never went below 20 % (12 A), so check that the boards accept lower values (`evsectl probe -duty 10`). `load_sharing.min_amps` defaults to 12 A.
+**Port maximum.** Each port's `max_amps` is always enforced through the J1772 pilot duty cycle. The usable range is 20–94 % duty, i.e. 12–75 A. J1772 allows 10 % (6 A), but the boards do not: with firmware 5.09C, any duty below 20 % is reported back as 20 %.
 
 **With `load_sharing.enabled`:**
 
@@ -100,6 +99,42 @@ Port states are `idle`, `connected`, `charging`, `fault`, `offline` and `unknown
 `display.theme` (`dark` or `light`) and `display.show_clock` are set in the config or on the settings page. The kiosk picks up changes on its next poll. The light theme is higher contrast for use in sunlight.
 
 The front end must keep working on the kiosk's Chromium 62 and on Firefox 57. That rules out flexbox `gap` (use margins) and grid `gap` (use `grid-gap`), `AbortController`, and JavaScript newer than ES2016.
+
+## Sessions
+
+A session starts when a vehicle connects. It ends once the vehicle has been disconnected for `session_end_delay_sec` (default 10 s), and the end time recorded is the moment the vehicle left. The delay exists because boards briefly report "disconnected" when charging finishes; without it, that blip would split the session and reset its energy. Set it to 0 to end sessions immediately.
+
+When a port has no session in progress, its card shows the previous session: energy delivered, or charging time if the port has no meter, and how long ago it ended. The controller computes that elapsed time, so the browser's clock doesn't matter.
+
+Finished sessions are appended to `data_dir/sessions.jsonl`. When that file reaches 2 MB (several thousand sessions), it is renamed to `sessions.jsonl.1`, replacing any older copy.
+
+## Logo
+
+The logo can be uploaded on the settings page. To set it from the command line, either:
+
+- **Copy the file into the data directory** as `logo.png`, `logo.jpg`, `logo.svg` or `logo.webp`. Remove any other `logo.*` files first; if several exist, the first in that order wins.
+
+  ```sh
+  sudo rm -f /var/lib/evse-controller/logo.*
+  sudo install -m 0644 -o evse -g evse mylogo.png /var/lib/evse-controller/logo.png
+  ```
+
+  No restart is needed. The kiosk picks up the new logo on its next poll, within about a second.
+
+- **Upload it through the API.** This checks the image type and removes old logo files for you:
+
+  ```sh
+  curl -u admin:PASSWORD -T mylogo.png http://localhost:8080/api/v1/logo
+  curl -u admin:PASSWORD -X DELETE http://localhost:8080/api/v1/logo   # back to the default
+  ```
+
+Logos are shown 44 px high and up to 220 px wide. A wide image with a transparent background works best.
+
+## Logs
+
+The installed service writes its log to `/var/log/evse-controller/evsectl.log`. At 10 MB the file is rotated to `evsectl.log.1`, and up to 3 old files are kept, so the log never uses more than 40 MB. The limits are set by `-log-max-mb` and `-log-backups` in `deploy/evse-controller.service`. Follow the log with `tail -f /var/log/evse-controller/evsectl.log`.
+
+Without `-log-file`, logs go to stderr, which systemd sends to the journal and Ubuntu forwards to `/var/log/syslog`. That file is rotated daily rather than by size, which is why the installed service uses `-log-file` instead. Startup errors are also printed to stderr, so `systemctl status evse-controller` still shows why the service failed to start.
 
 ## Notes
 

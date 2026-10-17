@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -98,11 +100,22 @@ func TestSessionLifecycleAndControl(t *testing.T) {
 		t.Fatalf("session energy %v, want 1.35", e)
 	}
 
-	// Unplug: the session is written to the store.
+	// Unplug: once the end delay has passed, the session is written to the
+	// store, ending at the moment the vehicle left.
 	now = now.Add(time.Second)
+	unplugged := now
+	fc[0].reading = reading(2, now)
+	s.cycle(now)
+	if len(store.Recent(10)) != 0 {
+		t.Fatal("session ended before the end delay")
+	}
+	now = now.Add(s.cfg.SessionEndDelay())
 	fc[0].reading = reading(2, now)
 	s.cycle(now)
 	sessions := store.Recent(10)
+	if len(sessions) == 1 && !sessions[0].PluggedOut.Equal(unplugged) {
+		t.Fatalf("plugged out %v, want %v", sessions[0].PluggedOut, unplugged)
+	}
 	if len(sessions) != 1 || sessions[0].Port != 1 || sessions[0].PeakAmps == nil || *sessions[0].PeakAmps != 30 {
 		t.Fatalf("sessions: %+v", sessions)
 	}
@@ -163,5 +176,113 @@ func TestOfflineKeepsLastCommand(t *testing.T) {
 	}
 	if s.Snapshot().Ports[0].Session == nil {
 		t.Fatal("session closed while offline")
+	}
+}
+
+// chargeFor runs n one-second cycles with port 1 in the given state, with the
+// meter energy rising 0.1 kWh per cycle while charging.
+func chargeFor(s *Station, fc []*fakeCharger, fm *fakeMeter, now *time.Time, kwh *float64, state uint8, n int) {
+	for i := 0; i < n; i++ {
+		*now = now.Add(time.Second)
+		amps := 0.0
+		if state == 4 {
+			*kwh += 0.1
+			amps = 30
+		}
+		fc[0].reading, fc[1].reading = reading(state, *now), reading(2, *now)
+		fm.reading = meter(*now, amps, *kwh)
+		s.cycle(*now)
+	}
+}
+
+func TestBriefDisconnectKeepsSession(t *testing.T) {
+	s, fc, fm, store := setup(t, false)
+	now, kwh := time.Now(), 50.0
+	chargeFor(s, fc, fm, &now, &kwh, 4, 10)
+	chargeFor(s, fc, fm, &now, &kwh, 2, 3) // board briefly reports unplugged
+	if p := s.Snapshot().Ports[0]; p.Session == nil || p.LastSession != nil {
+		t.Fatalf("session ended during brief disconnect: %+v", p)
+	}
+	chargeFor(s, fc, fm, &now, &kwh, 4, 5)
+	p := s.Snapshot().Ports[0]
+	if p.Session == nil || *p.Session.EnergyKWh < 1.39 || *p.Session.EnergyKWh > 1.41 {
+		t.Fatalf("energy not carried over: %+v", p.Session)
+	}
+	if len(store.Recent(10)) != 0 {
+		t.Fatal("brief disconnect logged a session")
+	}
+}
+
+func TestLastSessionShownAfterEnd(t *testing.T) {
+	s, fc, fm, store := setup(t, false)
+	now, kwh := time.Now(), 0.0
+	chargeFor(s, fc, fm, &now, &kwh, 4, 20)
+	chargeFor(s, fc, fm, &now, &kwh, 2, 15)
+	p := s.Snapshot().Ports[0]
+	if p.Session != nil || p.LastSession == nil {
+		t.Fatalf("session not finished: %+v", p)
+	}
+	ls := p.LastSession
+	if ls.EnergyKWh == nil || *ls.EnergyKWh < 1.89 || *ls.EnergyKWh > 1.91 { // 20 cycles; start read after the first
+		t.Fatalf("last session energy %v", ls.EnergyKWh)
+	}
+	// Ended when the vehicle left, 15 s before the last cycle.
+	if ls.SecondsSinceEnd < 14 || ls.SecondsSinceEnd > 15 {
+		t.Fatalf("seconds since end %v", ls.SecondsSinceEnd)
+	}
+	if s.Snapshot().Ports[1].LastSession != nil {
+		t.Fatal("port 2 has a last session")
+	}
+
+	// A restarted station shows the same last session.
+	s2 := newWithDevices(s.cfg, Options{Log: s.log, Store: store}, []device.Charger{fc[0], fc[1]}, []device.Meter{fm})
+	s2.cycle(now)
+	if ls2 := s2.Snapshot().Ports[0].LastSession; ls2 == nil || *ls2.EnergyKWh != *ls.EnergyKWh {
+		t.Fatalf("last session after restart: %+v", ls2)
+	}
+}
+
+func TestZeroEndDelayEndsImmediately(t *testing.T) {
+	s, fc, fm, store := setup(t, false)
+	zero := 0
+	s.cfg.SessionEndDelaySec = &zero
+	now, kwh := time.Now(), 0.0
+	chargeFor(s, fc, fm, &now, &kwh, 4, 3)
+	chargeFor(s, fc, fm, &now, &kwh, 2, 1)
+	if len(store.Recent(10)) != 1 {
+		t.Fatal("session not ended immediately")
+	}
+}
+
+func TestSessionsFileRotation(t *testing.T) {
+	dir := t.TempDir()
+	store, err := OpenStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.maxBytes = 1000
+	for i := 0; i < 30; i++ {
+		if err := store.AppendSession(Session{Port: 1 + i%2, PortName: "Port", PluggedIn: time.Now()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(dir, sessionsFile)
+	for _, p := range []string{path, path + ".1"} {
+		fi, err := os.Stat(p)
+		if err != nil || fi.Size() > 1000 {
+			t.Fatalf("%s: %v %v", p, fi, err)
+		}
+	}
+	// Reopening reads both files, oldest first.
+	again, err := OpenStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := len(again.Recent(0))
+	if n < 5 || n >= 30 {
+		t.Fatalf("reloaded %d sessions", n)
+	}
+	if again.LastForPort(2) == nil {
+		t.Fatal("no last session for port 2")
 	}
 }

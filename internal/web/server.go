@@ -27,12 +27,15 @@ var assets embed.FS
 // maxLogoBytes limits uploaded logo size.
 const maxLogoBytes = 1 << 20
 
-// logoTypes maps accepted logo extensions to content types.
-var logoTypes = map[string]string{
-	".png":  "image/png",
-	".jpg":  "image/jpeg",
-	".svg":  "image/svg+xml",
-	".webp": "image/webp",
+// logoTypes lists accepted logo file extensions and content types, in the
+// order they are looked for in the data directory (a fixed order, in case
+// more than one logo file exists).
+var logoTypes = []struct{ ext, contentType string }{
+	{".png", "image/png"},
+	{".jpg", "image/jpeg"},
+	{".jpeg", "image/jpeg"},
+	{".svg", "image/svg+xml"},
+	{".webp", "image/webp"},
 }
 
 // Server is the HTTP front end.
@@ -238,10 +241,10 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 // logoPath returns the uploaded logo file and its content type, if any.
 func (s *Server) logoPath() (string, string) {
 	dir := s.App.DataDir()
-	for ext, ct := range logoTypes {
-		p := filepath.Join(dir, "logo"+ext)
+	for _, t := range logoTypes {
+		p := filepath.Join(dir, "logo"+t.ext)
 		if _, err := os.Stat(p); err == nil {
-			return p, ct
+			return p, t.contentType
 		}
 	}
 	return "", ""
@@ -305,9 +308,9 @@ func (s *Server) putLogo(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	for other := range logoTypes {
-		if other != ext {
-			os.Remove(filepath.Join(dir, "logo"+other))
+	for _, t := range logoTypes {
+		if t.ext != ext {
+			os.Remove(filepath.Join(dir, "logo"+t.ext))
 		}
 	}
 	s.Log.Info("logo updated", "type", ext, "bytes", len(data), "remote", r.RemoteAddr)
@@ -316,8 +319,8 @@ func (s *Server) putLogo(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteLogo(w http.ResponseWriter, r *http.Request) {
 	dir := s.App.DataDir()
-	for ext := range logoTypes {
-		os.Remove(filepath.Join(dir, "logo"+ext))
+	for _, t := range logoTypes {
+		os.Remove(filepath.Join(dir, "logo"+t.ext))
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

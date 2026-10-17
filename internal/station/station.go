@@ -43,6 +43,8 @@ type Station struct {
 
 type portRuntime struct {
 	session     *Session
+	absentSince time.Time // when the vehicle was last seen leaving; zero if present
+	last        *Session  // most recent finished session
 	startEnergy float64
 	haveStart   bool
 	lastSeen    time.Time // last time the board was online
@@ -99,6 +101,7 @@ func newWithDevices(cfg *config.Config, opts Options, chargers []device.Charger,
 	maxAmps := make([]float64, len(cfg.Chargers))
 	for i, ch := range cfg.Chargers {
 		maxAmps[i] = ch.MaxAmps
+		s.ports[i].last = s.store.LastForPort(i + 1)
 	}
 	s.lm = loadmgr.New(cfg.LoadSharing, maxAmps)
 	// Until a board has been seen, keep it disabled at minimum current.
@@ -205,6 +208,12 @@ func (s *Station) trackSession(i int, now time.Time, class proto.ChargeState, ch
 	}
 	p.lastClass = class
 	vehicle := class == proto.StateConnected || class == proto.StateCharging
+	if vehicle {
+		if !p.absentSince.IsZero() && p.session != nil {
+			s.log.Info("vehicle reconnected; continuing session", "port", i+1, "gap", now.Sub(p.absentSince).Round(time.Second))
+		}
+		p.absentSince = time.Time{}
+	}
 	if p.session == nil && vehicle {
 		p.session = &Session{Port: i + 1, PortName: s.cfg.Chargers[i].Name, PluggedIn: now}
 		p.haveStart = false
@@ -241,22 +250,29 @@ func (s *Station) trackSession(i int, now time.Time, class proto.ChargeState, ch
 		sess.ChargeEnd = &t
 	}
 	if !vehicle {
-		s.finishSession(i, now)
+		// End the session only once the vehicle has stayed away, since
+		// boards briefly report "disconnected" when charging finishes.
+		if p.absentSince.IsZero() {
+			p.absentSince = now
+		}
+		if now.Sub(p.absentSince) >= s.cfg.SessionEndDelay() {
+			s.finishSession(i, p.absentSince)
+		}
 	}
 }
 
-func (s *Station) finishSession(i int, now time.Time) {
+// finishSession records the session on port i as ended at end.
+func (s *Station) finishSession(i int, end time.Time) {
 	p := &s.ports[i]
 	sess := p.session
 	if sess == nil {
 		return
 	}
-	t := now
-	sess.PluggedOut = &t
+	sess.PluggedOut = &end
 	if sess.ChargeStart != nil && sess.ChargeEnd == nil {
-		sess.ChargeEnd = &t
+		sess.ChargeEnd = &end
 	}
-	p.session = nil
+	p.session, p.absentSince, p.last = nil, time.Time{}, sess
 	if err := s.store.AppendSession(*sess); err != nil {
 		s.log.Error("saving session", "err", err)
 	}
@@ -269,7 +285,11 @@ func (s *Station) finishOpenSessions(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i := range s.ports {
-		s.finishSession(i, now)
+		end := now
+		if t := s.ports[i].absentSince; !t.IsZero() {
+			end = t
+		}
+		s.finishSession(i, end)
 	}
 }
 

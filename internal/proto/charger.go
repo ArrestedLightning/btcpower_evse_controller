@@ -25,11 +25,11 @@ const (
 	CmdReset   = 0x7D // reset board
 )
 
-// Duty cycle limits for CmdSetDuty. The original software never sent less
-// than 20% (12 A); 10% (6 A) is the J1772 minimum and is allowed here so the
-// hardware can be tested at lower currents. MaxDuty matches the original.
+// Duty cycle limits for CmdSetDuty. The boards enforce a 20% (12 A) minimum:
+// tested with firmware 5.09C, any lower value is reported back as 20%, even
+// though J1772 allows 10% (6 A). MaxDuty matches the original software.
 const (
-	MinDuty = 10
+	MinDuty = 20
 	MaxDuty = 94
 )
 

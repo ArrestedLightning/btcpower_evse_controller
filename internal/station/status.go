@@ -46,6 +46,7 @@ type PortStatus struct {
 	Error          string            `json:"error,omitempty"`
 	Meter          *PortMeter        `json:"meter,omitempty"`
 	Session        *SessionStatus    `json:"session,omitempty"`
+	LastSession    *LastSession      `json:"last_session,omitempty"`
 	Board          *proto.Status     `json:"board,omitempty"`
 }
 
@@ -65,6 +66,16 @@ type SessionStatus struct {
 	DurationSeconds float64    `json:"duration_seconds"`
 	ChargingSeconds float64    `json:"charging_seconds"`
 	EnergyKWh       *float64   `json:"energy_kwh"`
+}
+
+// LastSession summarises the most recent finished session on a port.
+type LastSession struct {
+	PluggedIn       time.Time `json:"plugged_in"`
+	Ended           time.Time `json:"ended"`
+	SecondsSinceEnd float64   `json:"seconds_since_end"` // computed by the controller, so the viewer's clock doesn't matter
+	DurationSeconds float64   `json:"duration_seconds"`
+	ChargingSeconds float64   `json:"charging_seconds"`
+	EnergyKWh       *float64  `json:"energy_kwh"`
 }
 
 // MeterStatus describes one meter board.
@@ -140,6 +151,16 @@ func (s *Station) buildStatus(now time.Time) Status {
 				DurationSeconds: now.Sub(sess.PluggedIn).Seconds(),
 				ChargingSeconds: sess.ChargingSeconds,
 				EnergyKWh:       sess.EnergyKWh,
+			}
+		}
+		if last := p.last; last != nil && last.PluggedOut != nil {
+			ps.LastSession = &LastSession{
+				PluggedIn:       last.PluggedIn,
+				Ended:           *last.PluggedOut,
+				SecondsSinceEnd: max(0, now.Sub(*last.PluggedOut).Seconds()),
+				DurationSeconds: last.PluggedOut.Sub(last.PluggedIn).Seconds(),
+				ChargingSeconds: last.ChargingSeconds,
+				EnergyKWh:       last.EnergyKWh,
 			}
 		}
 		st.Ports = append(st.Ports, ps)

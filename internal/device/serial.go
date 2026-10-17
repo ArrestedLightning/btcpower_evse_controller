@@ -97,14 +97,22 @@ func (c *SerialCharger) setErr(err error) {
 }
 
 func (c *SerialCharger) Run(ctx context.Context) {
+	var lastErr string
 	for ctx.Err() == nil {
 		port, err := openPort(c.Path, proto.ChargerBaud)
 		if err != nil {
-			c.Log.Warn("open failed", "err", err)
+			// Retried every 5 s: log each distinct error once.
+			if err.Error() != lastErr {
+				c.Log.Warn("open failed; retrying every 5s", "err", err)
+				lastErr = err.Error()
+			} else {
+				c.Log.Debug("open failed", "err", err)
+			}
 			c.setErr(err)
 			sleepCtx(ctx, 5*time.Second)
 			continue
 		}
+		lastErr = ""
 		c.Log.Info("port opened")
 		err = c.session(ctx, port)
 		port.Close()
@@ -236,14 +244,22 @@ func (m *SerialMeter) Reading() MeterReading {
 }
 
 func (m *SerialMeter) Run(ctx context.Context) {
+	var lastErr string
 	for ctx.Err() == nil {
 		port, err := openPort(m.Path, proto.MeterBaud)
 		if err != nil {
-			m.Log.Warn("open failed", "err", err)
+			// Retried every 5 s: log each distinct error once.
+			if err.Error() != lastErr {
+				m.Log.Warn("open failed; retrying every 5s", "err", err)
+				lastErr = err.Error()
+			} else {
+				m.Log.Debug("open failed", "err", err)
+			}
 			m.setErr(err)
 			sleepCtx(ctx, 5*time.Second)
 			continue
 		}
+		lastErr = ""
 		m.Log.Info("port opened")
 		err = m.session(ctx, port)
 		port.Close()

@@ -9,11 +9,14 @@ listen: ":8080"
 admin_password: change-me
 data_dir: /var/lib/evse-controller
 poll_interval_ms: 1000
+# A session ends only after the vehicle has been disconnected this long.
+# Boards briefly report "disconnected" when charging finishes.
+session_end_delay_sec: 10
 
 # 1-4 chargers. Serial ports found on the original system:
 # port 1 = /dev/ttyS1, port 2 = /dev/ttyS3, power meter = /dev/ttyS2.
-# max_amps: 6-75 A (pilot duty 10-94%). The original software never went
-# below 12 A; lower values are untested on this hardware.
+# max_amps: 12-75 A (pilot duty 20-94%). The boards will not go below 20%
+# (12 A), though J1772 allows 10% (6 A).
 chargers:
   - name: Port 1
     serial: /dev/ttyS1
@@ -33,7 +36,6 @@ load_sharing:
   enabled: false
   system_max_amps: 40
   # Lowest current offered to a vehicle; ports that can't get this wait.
-  # 6-12 A; below 12 A is untested on this hardware.
   min_amps: 12
   # Reallocate current that vehicles aren't using (requires meter channels).
   dynamic: false

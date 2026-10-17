@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/ArrestedLightning/btcpower_evse_controller/internal/app"
 	"github.com/ArrestedLightning/btcpower_evse_controller/internal/config"
+	"github.com/ArrestedLightning/btcpower_evse_controller/internal/rotlog"
 	"github.com/ArrestedLightning/btcpower_evse_controller/internal/web"
 )
 
@@ -37,6 +39,9 @@ func run() int {
 	listen := flag.String("listen", "", "override listen address from the config file")
 	debugSerial := flag.Bool("debug-serial", false, "log all serial traffic (implies -log-level debug)")
 	logLevel := flag.String("log-level", "info", "log level: debug, info, warn, error")
+	logFile := flag.String("log-file", "", "write logs to this file, with size-based rotation, instead of stderr")
+	logMaxMB := flag.Int("log-max-mb", 10, "rotate the log file when it reaches this size (MB)")
+	logBackups := flag.Int("log-backups", 3, "number of rotated log files to keep")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage:\n  %s [flags]\n  %s probe -h\n\nFlags:\n", os.Args[0], os.Args[0])
@@ -56,12 +61,30 @@ func run() int {
 	if *debugSerial {
 		level = slog.LevelDebug
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	var out io.Writer = os.Stderr
+	if *logFile != "" {
+		f, err := rotlog.Open(*logFile, int64(*logMaxMB)<<20, *logBackups)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "opening log file:", err)
+			return 1
+		}
+		defer f.Close()
+		out = f
+	}
+	log := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: level}))
+	// fatal logs an error and, when logging to a file, also prints it to
+	// stderr so it shows in `systemctl status`.
+	fatal := func(msg string, args ...any) int {
+		log.Error(msg, args...)
+		if *logFile != "" {
+			fmt.Fprintln(os.Stderr, append([]any{msg + ":"}, args...)...)
+		}
+		return 1
+	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Error("loading configuration", "err", err)
-		return 1
+		return fatal("loading configuration", "err", err)
 	}
 	if *dataDir != "" {
 		cfg.DataDir = *dataDir
@@ -75,8 +98,7 @@ func run() int {
 
 	a, err := app.New(*configPath, cfg, *simulate, *debugSerial, log)
 	if err != nil {
-		log.Error("opening data directory", "dir", cfg.DataDir, "err", err)
-		return 1
+		return fatal("opening data directory", "dir", cfg.DataDir, "err", err)
 	}
 	a.Start(ctx)
 
@@ -99,8 +121,7 @@ func run() int {
 		log.Info("shutting down")
 	case err := <-errc:
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Error("web server", "err", err)
-			code = 1
+			code = fatal("web server", "err", err)
 		}
 	}
 	shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
