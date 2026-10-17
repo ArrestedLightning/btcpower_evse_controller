@@ -56,13 +56,17 @@ func TestDisplayDefaults(t *testing.T) {
 	if c.SessionEndDelay() != 10*time.Second {
 		t.Fatalf("session end delay default %v", c.SessionEndDelay())
 	}
-	if c.Display.Theme != ThemeDark || !c.Display.ClockVisible() {
+	if c.Display.Theme != ThemeDark || !c.Display.ClockVisible() || !c.Display.LastSessionVisible() {
 		t.Fatalf("defaults: %+v", c.Display)
 	}
 	clone := c.Clone()
 	*clone.Display.ShowClock = false
 	if !c.Display.ClockVisible() {
 		t.Fatal("Clone shares ShowClock")
+	}
+	*clone.Display.ShowLastSession = false
+	if !c.Display.LastSessionVisible() {
+		t.Fatal("Clone shares ShowLastSession")
 	}
 }
 

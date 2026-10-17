@@ -136,8 +136,9 @@ type statusResponse struct {
 }
 
 type displayOptions struct {
-	Theme     string `json:"theme"`
-	ShowClock bool   `json:"show_clock"`
+	Theme           string `json:"theme"`
+	ShowClock       bool   `json:"show_clock"`
+	ShowLastSession bool   `json:"show_last_session"`
 }
 
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +146,7 @@ func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
 	resp := statusResponse{
 		Status:  s.App.Station().Snapshot(),
 		Version: s.Version,
-		Display: displayOptions{Theme: d.Theme, ShowClock: d.ClockVisible()},
+		Display: displayOptions{Theme: d.Theme, ShowClock: d.ClockVisible(), ShowLastSession: d.LastSessionVisible()},
 	}
 	if p, _ := s.logoPath(); p != "" {
 		if fi, err := os.Stat(p); err == nil {

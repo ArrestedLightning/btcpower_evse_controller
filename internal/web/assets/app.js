@@ -69,7 +69,7 @@
     portsEl.setAttribute("data-count", String(n));
   }
 
-  function renderPort(card, p) {
+  function renderPort(card, p, showLast) {
     var d = describe(p);
     card.className = "port s-" + d.cls;
     card.querySelector(".port-name").textContent = p.name;
@@ -80,7 +80,7 @@
     var big = card.querySelector(".big-value");
     var unit = card.querySelector(".big-unit");
     var label = card.querySelector(".big-label");
-    var last = sess ? null : p.last_session;
+    var last = sess || !showLast ? null : p.last_session;
     var sub = d.sub;
     label.textContent = "";
     card.querySelector(".big").className = "big";
@@ -137,7 +137,9 @@
     document.getElementById("station-name").textContent = st.station_name;
     document.title = st.station_name;
     ensureCards(st.ports.length);
-    for (var i = 0; i < st.ports.length; i++) renderPort(cards[i], st.ports[i]);
+    var disp = st.display || {};
+    var showLast = disp.show_last_session !== false;
+    for (var i = 0; i < st.ports.length; i++) renderPort(cards[i], st.ports[i], showLast);
 
     var ls = st.load_sharing;
     var sharing = "";
@@ -153,7 +155,6 @@
     var meters = st.meters || [];
     var down = meters.filter(function (m) { return !m.online; }).map(function (m) { return m.name; });
     document.getElementById("meters").textContent = down.length ? "Meter offline: " + down.join(", ") : "";
-    var disp = st.display || {};
     document.documentElement.className = "theme-" + (disp.theme || "dark");
     document.getElementById("clock").hidden = disp.show_clock === false;
 

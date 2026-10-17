@@ -163,7 +163,7 @@ func TestDisplayOptions(t *testing.T) {
 	}
 	cfg := a.Config()
 	hide := false
-	cfg.Display = config.Display{Theme: config.ThemeLight, ShowClock: &hide}
+	cfg.Display = config.Display{Theme: config.ThemeLight, ShowClock: &hide, ShowLastSession: &hide}
 	if err := a.ApplyConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,8 @@ func TestDisplayOptions(t *testing.T) {
 		t.Fatalf("light page: %s", body)
 	}
 	_, body = do(t, srv, "GET", "/api/v1/status", nil, false)
-	if !strings.Contains(string(body), `"theme": "light"`) || !strings.Contains(string(body), `"show_clock": false`) {
+	if !strings.Contains(string(body), `"theme": "light"`) || !strings.Contains(string(body), `"show_clock": false`) ||
+		!strings.Contains(string(body), `"show_last_session": false`) {
 		t.Fatalf("status display: %s", body)
 	}
 }

@@ -132,6 +132,7 @@
     f.ls_probe_interval_sec.value = ls.probe_interval_sec;
     f.display_theme.value = c.display.theme;
     f.display_show_clock.checked = c.display.show_clock !== false;
+    f.display_show_last_session.checked = c.display.show_last_session !== false;
     document.documentElement.className = "theme-" + c.display.theme;
     f.admin_password.value = "";
     metersEl.innerHTML = "";
@@ -153,7 +154,8 @@
       admin_password: f.admin_password.value,
       display: {
         theme: f.display_theme.value,
-        show_clock: f.display_show_clock.checked
+        show_clock: f.display_show_clock.checked,
+        show_last_session: f.display_show_last_session.checked
       },
       chargers: [],
       meters: [],

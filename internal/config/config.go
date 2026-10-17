@@ -56,10 +56,16 @@ type Display struct {
 	Theme string `yaml:"theme" json:"theme"`
 	// ShowClock shows the time in the header; hide it if the clock is unreliable.
 	ShowClock *bool `yaml:"show_clock" json:"show_clock"`
+	// ShowLastSession shows the previous session's energy on idle ports.
+	ShowLastSession *bool `yaml:"show_last_session" json:"show_last_session"`
 }
 
 // ClockVisible reports whether the clock should be shown (default true).
 func (d Display) ClockVisible() bool { return d.ShowClock == nil || *d.ShowClock }
+
+// LastSessionVisible reports whether idle ports show the previous session
+// (default true).
+func (d Display) LastSessionVisible() bool { return d.ShowLastSession == nil || *d.ShowLastSession }
 
 // Charger is one J1772 port and its control board.
 type Charger struct {
@@ -142,6 +148,10 @@ func (c *Config) ApplyDefaults() {
 	if c.Display.ShowClock == nil {
 		show := true
 		c.Display.ShowClock = &show
+	}
+	if c.Display.ShowLastSession == nil {
+		show := true
+		c.Display.ShowLastSession = &show
 	}
 	ls := &c.LoadSharing
 	if ls.MinAmps == 0 {
@@ -273,6 +283,10 @@ func (c *Config) Clone() *Config {
 	if c.Display.ShowClock != nil {
 		show := *c.Display.ShowClock
 		n.Display.ShowClock = &show
+	}
+	if c.Display.ShowLastSession != nil {
+		show := *c.Display.ShowLastSession
+		n.Display.ShowLastSession = &show
 	}
 	return &n
 }

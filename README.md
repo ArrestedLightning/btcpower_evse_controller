@@ -10,6 +10,8 @@ Replacement controller for BTC Power dual-port J1772 EVSEs. It is a single stati
 
 It supports 1–4 chargers and 0–2 meter boards.
 
+![Status page with two ports in the light theme: port 1 charging at 3.8 kW, port 2 available and showing its last session of 3.42 kWh](docs/screenshot.png)
+
 ## Build
 
 ```sh
@@ -96,7 +98,7 @@ Port states are `idle`, `connected`, `charging`, `fault`, `offline` and `unknown
 
 ## Display
 
-`display.theme` (`dark` or `light`) and `display.show_clock` are set in the config or on the settings page. The kiosk picks up changes on its next poll. The light theme is higher contrast for use in sunlight.
+`display.theme` (`dark` or `light`), `display.show_clock` and `display.show_last_session` are set in the config or on the settings page. The kiosk picks up changes on its next poll. The light theme is higher contrast for use in sunlight.
 
 The front end must keep working on the kiosk's Chromium 62 and on Firefox 57. That rules out flexbox `gap` (use margins) and grid `gap` (use `grid-gap`), `AbortController`, and JavaScript newer than ES2016.
 
@@ -104,7 +106,7 @@ The front end must keep working on the kiosk's Chromium 62 and on Firefox 57. Th
 
 A session starts when a vehicle connects. It ends once the vehicle has been disconnected for `session_end_delay_sec` (default 10 s), and the end time recorded is the moment the vehicle left. The delay exists because boards briefly report "disconnected" when charging finishes; without it, that blip would split the session and reset its energy. Set it to 0 to end sessions immediately.
 
-When a port has no session in progress, its card shows the previous session: energy delivered, or charging time if the port has no meter, and how long ago it ended. The controller computes that elapsed time, so the browser's clock doesn't matter.
+When a port has no session in progress, its card shows the previous session (unless `display.show_last_session` is false): energy delivered, or charging time if the port has no meter, and how long ago it ended. The controller computes that elapsed time, so the browser's clock doesn't matter.
 
 Finished sessions are appended to `data_dir/sessions.jsonl`. When that file reaches 2 MB (several thousand sessions), it is renamed to `sessions.jsonl.1`, replacing any older copy.
 

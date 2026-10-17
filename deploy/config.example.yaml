@@ -49,3 +49,5 @@ display:
   theme: dark
   # Hide the clock if the system time isn't reliable.
   show_clock: true
+  # Show the energy delivered in the previous session on ports with no vehicle.
+  show_last_session: true
