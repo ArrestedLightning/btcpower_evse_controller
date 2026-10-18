@@ -17,8 +17,15 @@ It supports 1–4 chargers and 0–2 meter boards.
 ## Build
 
 ```sh
+make              # static linux/amd64 binary ./evsectl
+make test
+make dist         # dist/evse-controller-VERSION.tar.gz: evsectl, deploy/, README
+```
+
+`VERSION` comes from `git describe` (a `v0.4.0` tag gives `0.4.0`); override it with `make dist VERSION=0.4.0`. Without make:
+
+```sh
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.4.0" -o evsectl ./cmd/evsectl
-go test ./...
 ```
 
 All web assets are embedded in the binary. The binary runs on the EVSE's Ubuntu 16.04.
@@ -38,7 +45,15 @@ curl -XPOST localhost:8080/api/v1/sim/ports/1/plug      # also: unplug, request,
 
 ## Install on the EVSE
 
-Copy `evsectl` and `deploy/` to the EVSE, then run `sudo deploy/install.sh`. The script:
+Copy the `make dist` tarball to the EVSE, then:
+
+```sh
+tar -xzf evse-controller-0.4.0.tar.gz
+cd evse-controller-0.4.0
+sudo deploy/install.sh
+```
+
+Without the tarball, copy `evsectl` and `deploy/` side by side and run the same script. The script:
 
 1. Backs up root's crontab and disables the original software: cron jobs, serial daemons, apache2 and mysql. Nothing is deleted.
 2. Installs `/usr/local/bin/evsectl`, `/etc/evse-controller/config.yaml` and a systemd unit running as user `evse`.

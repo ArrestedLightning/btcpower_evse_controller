@@ -8,6 +8,8 @@ Replacement controller for a BTC Power dual-port J1772 EVSE: one static Go binar
 
 Toolchain is Go 1.22; always set `GOTOOLCHAIN=local` so `go get`/builds don't silently upgrade the module to a newer Go.
 
+The Makefile wraps the common tasks (it exports `GOTOOLCHAIN=local`): `make` (static binary), `make test`, `make vet`, `make sim`, `make dist VERSION=x.y.z` (tarball in `dist/` with `evsectl` next to `deploy/`, the layout `install.sh` expects; add new shipped files to `DIST_FILES`).
+
 ```sh
 GOTOOLCHAIN=local go test ./...                                   # all tests (add -race for station/device)
 GOTOOLCHAIN=local go test ./internal/loadmgr -run TestRandomizedBudgetInvariant -v
