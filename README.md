@@ -1,6 +1,8 @@
 # evse-controller
 
-Replacement controller for BTC Power dual-port J1772 EVSEs. It is a single static Go binary that:
+Replacement controller software for BTCPower J1772 EVSEs.  The example I have is model number EVP-2002-30 which has two charging ports rated at 30A each, implemented using two charging boards, a single two-channel power meter board, and a single-board x86 PC running Ubuntu 16.04.
+
+This program is a single static Go binary that:
 
 - talks directly to the charge control boards and power meter boards over serial,
 - serves a status page for the built-in kiosk display and for network browsers,
@@ -15,7 +17,7 @@ It supports 1–4 chargers and 0–2 meter boards.
 ## Build
 
 ```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o evsectl ./cmd/evsectl
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.4.0" -o evsectl ./cmd/evsectl
 go test ./...
 ```
 
@@ -33,23 +35,6 @@ Open http://localhost:8080/. In simulate mode, vehicles come and go on their own
 curl -XPOST localhost:8080/api/v1/sim/ports/1/manual    # stop automatic behaviour
 curl -XPOST localhost:8080/api/v1/sim/ports/1/plug      # also: unplug, request, stop, fault, clear, auto
 ```
-
-## Confirm the protocol on real hardware first
-
-The serial protocols were reverse engineered from the vendor's C sources (`linuxPOS/serialChargerInterface`). A few details could not be confirmed from the code. Check them with `probe`, with the service stopped:
-
-```sh
-evsectl probe -port /dev/ttyS1                      # status frames and firmware version
-evsectl probe -port /dev/ttyS1 -duty 30             # board should then report duty 30 (18 A)
-evsectl probe -port /dev/ttyS1 -enable -keepalive=false -count 20   # does enable lapse without the resend? (watchdog)
-evsectl probe -port /dev/ttyS2 -type meter          # meter frame header bytes and scaling
-```
-
-Unconfirmed items:
-
-- **Meter reply header:** the header bytes of the meter reply. The parser only relies on the leading `R` and trailing `E`.
-- **Meter scaling:** the power factor and frequency scaling, which are reported raw.
-- **State codes 21–26:** their meaning. They are grouped the same way the vendor UI grouped them.
 
 ## Install on the EVSE
 
@@ -142,3 +127,8 @@ Without `-log-file`, logs go to stderr, which systemd sends to the journal and U
 
 - Restarting the service, or saving settings, ends sessions in progress in the log. Charging itself continues and a new session record starts.
 - The `-data-dir` and `-listen` flags override the config file. If you save settings while using them, the overridden values are written to the file.
+- There is no security implemented on the web interface or API.  I would adivse against exposing this directly to the internet.
+
+## License
+
+GPL Version 3 or later
