@@ -144,6 +144,10 @@ Without `-log-file`, logs go to stderr, which systemd sends to the journal and U
 - The `-data-dir` and `-listen` flags override the config file. If you save settings while using them, the overridden values are written to the file.
 - There is no security implemented on the web interface or API.  I would adivse against exposing this directly to the internet.
 
+## Disclaimer
+
+I have been using this software "in production" for a while now and believe it to be reasonably safe and stable.  That being said, if it is configured incorrectly, it is likely possible to allow current to be drawn in excess of what the wiring can safely handle, on both the input and ouput side of the charger.  This may result in an electrical fire or damage to the EVSE, connected vehicles, and/or your building wiring.  **All use of this software is at your own risk.**
+
 ## License
 
 GPL Version 3 or later
