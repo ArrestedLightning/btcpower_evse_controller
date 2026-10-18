@@ -20,11 +20,11 @@ session_end_delay_sec: 10
 chargers:
   - name: Port 1
     serial: /dev/ttyS1
-    max_amps: 32
+    max_amps: 30
     meter: {meter: 1, channel: 1}
   - name: Port 2
     serial: /dev/ttyS3
-    max_amps: 32
+    max_amps: 30
     meter: {meter: 1, channel: 2}
 
 # 0-2 power meter boards, two channels each.
