@@ -1,4 +1,4 @@
-# evse-controller
+# BTCPower EVSE Controller
 
 Replacement controller software for BTCPower J1772 EVSEs.  The example I have is model number EVP-2002-30 which has two charging ports rated at 30A each, implemented using two charging boards, a single two-channel power meter board, and a single-board x86 PC running Ubuntu 16.04.
 
